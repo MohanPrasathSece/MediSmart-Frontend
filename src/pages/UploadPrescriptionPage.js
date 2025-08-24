@@ -575,9 +575,8 @@ const UploadPrescriptionPage = () => {
           </div>
           {paymentMethod === 'upi' && (
             <div className="mt-4 border-t pt-4">
-              {/* Build UPI intent URL from env and computed total */}
+              {/* Compute total for display next to QR */}
               {(() => {
-                // Compute total from current selections for amount parameter
                 let uiSubtotal = 0;
                 Object.entries(selections).forEach(([medName, selection]) => {
                   const ph = pharmacies.find(p => p._id === selection.pharmacyId);
@@ -588,11 +587,6 @@ const UploadPrescriptionPage = () => {
                 const uiDelivery = 50;
                 const uiTotal = (uiSubtotal + uiTax + uiDelivery).toFixed(2);
 
-                const vpa = process.env.REACT_APP_UPI_VPA || '';
-                const pn = encodeURIComponent(process.env.REACT_APP_UPI_PN || (selectedPharmacy?.name || 'Pharmacy'));
-                const tn = encodeURIComponent(`Order ${new Date().getTime()}`);
-                const upiUrl = vpa ? `upi://pay?pa=${vpa}&pn=${pn}&am=${uiTotal}&cu=INR&tn=${tn}` : '';
-
                 return (
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="flex flex-col items-center">
@@ -600,18 +594,8 @@ const UploadPrescriptionPage = () => {
                         src={process.env.REACT_APP_UPI_QR_URL || '/upi-qr.png'}
                         alt="UPI QR"
                         className="w-56 h-56 object-contain border rounded"
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
                       />
-                      <p className="text-sm text-gray-600 mt-2">Scan to pay (amount: ₹{uiTotal})</p>
-                      {upiUrl && (
-                        <button
-                          type="button"
-                          className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-                          onClick={() => { window.location.href = upiUrl; }}
-                        >
-                          Open UPI App
-                        </button>
-                      )}
+                      <p className="text-sm text-gray-600 mt-2">Scan this QR to pay. Amount: ₹{uiTotal}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Payment Reference (UTR - optional)</label>
