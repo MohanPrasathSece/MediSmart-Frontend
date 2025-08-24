@@ -46,6 +46,9 @@ const UploadPrescriptionPage = () => {
   const [paymentMethod, setPaymentMethod] = useState('cash_on_delivery');
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
   const [confirmDetails, setConfirmDetails] = useState(null);
+  // UPI payment state
+  const [upiConfirmed, setUpiConfirmed] = useState(false);
+  const [upiReference, setUpiReference] = useState('');
 
   const handleAddressChange = (e) => {
     setDeliveryAddress({ ...deliveryAddress, [e.target.name]: e.target.value });
@@ -53,6 +56,11 @@ const UploadPrescriptionPage = () => {
 
   const handlePaymentMethodChange = (method) => {
     setPaymentMethod(method);
+    // Reset UPI confirmation/reference when switching methods
+    if (method !== 'upi') {
+      setUpiConfirmed(false);
+      setUpiReference('');
+    }
   };
 
   useEffect(() => {
@@ -297,6 +305,14 @@ const UploadPrescriptionPage = () => {
         }]
       };
 
+      // Include payment details for UPI
+      if ((payload.paymentMethod || 'cash_on_delivery') === 'upi') {
+        orderPayload.paymentDetails = {
+          paymentId: payload.paymentReference || undefined,
+          status: 'pending'
+        };
+      }
+
       // Log the payload for debugging
       console.log('Order payload:', JSON.stringify(orderPayload, null, 2));
       
@@ -483,6 +499,7 @@ const UploadPrescriptionPage = () => {
           country: deliveryAddress.country || 'India',
         },
         paymentMethod,
+        paymentReference: upiReference || undefined,
         prescriptionUrl: 'temporary-prescription-url',
         totalAmount: Number(calculatedTotal.toFixed(2)),
         status: 'pending',
@@ -556,6 +573,69 @@ const UploadPrescriptionPage = () => {
               </div>
             </button>
           </div>
+          {paymentMethod === 'upi' && (
+            <div className="mt-4 border-t pt-4">
+              {/* Build UPI intent URL from env and computed total */}
+              {(() => {
+                // Compute total from current selections for amount parameter
+                let uiSubtotal = 0;
+                Object.entries(selections).forEach(([medName, selection]) => {
+                  const ph = pharmacies.find(p => p._id === selection.pharmacyId);
+                  const stock = ph?.medicinesInStock.find(m => m._id === selection.medicineId);
+                  if (stock) uiSubtotal += Number(stock.price) * Number(selection.quantity || 1);
+                });
+                const uiTax = uiSubtotal * 0.05;
+                const uiDelivery = 50;
+                const uiTotal = (uiSubtotal + uiTax + uiDelivery).toFixed(2);
+
+                const vpa = process.env.REACT_APP_UPI_VPA || '';
+                const pn = encodeURIComponent(process.env.REACT_APP_UPI_PN || (selectedPharmacy?.name || 'Pharmacy'));
+                const tn = encodeURIComponent(`Order ${new Date().getTime()}`);
+                const upiUrl = vpa ? `upi://pay?pa=${vpa}&pn=${pn}&am=${uiTotal}&cu=INR&tn=${tn}` : '';
+
+                return (
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="flex flex-col items-center">
+                      <img
+                        src={process.env.REACT_APP_UPI_QR_URL || '/upi-qr.png'}
+                        alt="UPI QR"
+                        className="w-56 h-56 object-contain border rounded"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                      <p className="text-sm text-gray-600 mt-2">Scan to pay (amount: ₹{uiTotal})</p>
+                      {upiUrl && (
+                        <button
+                          type="button"
+                          className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                          onClick={() => { window.location.href = upiUrl; }}
+                        >
+                          Open UPI App
+                        </button>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Payment Reference (UTR - optional)</label>
+                      <input
+                        type="text"
+                        value={upiReference}
+                        onChange={(e) => setUpiReference(e.target.value)}
+                        placeholder="Enter UTR/Reference ID"
+                        className="mt-1 w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <label className="mt-3 inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={upiConfirmed}
+                          onChange={(e) => setUpiConfirmed(e.target.checked)}
+                        />
+                        <span>I have completed the UPI payment</span>
+                      </label>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
 
         {/* Delivery Address */}
@@ -651,7 +731,11 @@ const UploadPrescriptionPage = () => {
       <button
         className="mt-6 w-full flex justify-center items-center py-3 px-4 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 disabled:bg-green-300"
         onClick={handleOrderSubmit}
-        disabled={isSubmitting || Object.keys(selections).length === 0}
+        disabled={
+          isSubmitting ||
+          Object.keys(selections).length === 0 ||
+          (paymentMethod === 'upi' && !upiConfirmed)
+        }
       >
         {isSubmitting ? <Spinner size="sm" /> : 'Place Order'}
       </button>
