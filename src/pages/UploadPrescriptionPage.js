@@ -587,15 +587,46 @@ const UploadPrescriptionPage = () => {
                 const uiDelivery = 50;
                 const uiTotal = (uiSubtotal + uiTax + uiDelivery).toFixed(2);
 
+                // Build UPI link for mobile-only use
+                const vpaValue = (process.env.REACT_APP_UPI_VPA || 'mohanprasath563@okicici').trim();
+                const pn = encodeURIComponent(process.env.REACT_APP_UPI_PN || (selectedPharmacy?.name || 'Pharmacy'));
+                const tn = encodeURIComponent(`Order ${new Date().getTime()}`);
+                const upiUrl = `upi://pay?pa=${encodeURIComponent(vpaValue)}&pn=${pn}&am=${uiTotal}&cu=INR&tn=${tn}`;
+                const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent || '');
+
+                const copyToClipboard = async (text) => {
+                  try {
+                    await navigator.clipboard.writeText(String(text));
+                    toast.success('Copied to clipboard');
+                  } catch (_) {
+                    // silent
+                  }
+                };
+
                 return (
                   <div className="grid md:grid-cols-2 gap-4">
-                    <div className="flex flex-col items-center">
-                      <img
-                        src={process.env.REACT_APP_UPI_QR_URL || '/upi-qr.png'}
-                        alt="UPI QR"
-                        className="w-56 h-56 object-contain border rounded"
-                      />
-                      <p className="text-sm text-gray-600 mt-2">Scan this QR to pay. Amount: ₹{uiTotal}</p>
+                    <div className="flex flex-col items-start">
+                      <p className="text-sm text-gray-800"><span className="font-medium">UPI ID:</span> {vpaValue}</p>
+                      <p className="text-sm text-gray-800 mt-1"><span className="font-medium">Amount:</span> ₹{uiTotal}</p>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          className="px-3 py-1 text-sm border rounded hover:bg-gray-50"
+                          onClick={() => copyToClipboard(vpaValue)}
+                        >Copy UPI ID</button>
+                        <button
+                          type="button"
+                          className="px-3 py-1 text-sm border rounded hover:bg-gray-50"
+                          onClick={() => copyToClipboard(uiTotal)}
+                        >Copy Amount</button>
+                      </div>
+                      {isMobile && (
+                        <button
+                          type="button"
+                          className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                          onClick={() => { window.location.href = upiUrl; }}
+                        >Open UPI App</button>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Payment Reference (UTR - optional)</label>
