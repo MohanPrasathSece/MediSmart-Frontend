@@ -108,7 +108,7 @@ const RegisterPage = () => {
                 <option value="">Select a role</option>
                 <option value="patient">Patient</option>
                 <option value="pharmacy">Pharmacy</option>
-                <option value="delivery_boy">Delivery Boy</option>
+                <option value="delivery_boy">Delivery Partner</option>
               </select>
             </div>
             {errors.role && <p className="mt-1 text-xs text-red-500">{errors.role.message}</p>}
