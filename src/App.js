@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 import AuthProvider from './context/AuthProvider';
 import Layout from './components/Layout';
+import AuthRedirect from './components/AuthRedirect';
 import ProtectedRoute from './components/ProtectedRoute';
 import Spinner from './components/common/Spinner';
 
@@ -58,12 +59,26 @@ const App = () => {
               {/* Main Application Routes - With Layout */}
               <Route path="/" element={<Layout />}>
                 <Route index element={<HomePage />} />
-                <Route path="medicines" element={<MedicinesPage />} />
-                <Route path="medicines/:id" element={<MedicineDetailPage />} />
+                {/* Require registration for medicines browsing and detail */}
+                <Route path="medicines" element={
+                  <AuthRedirect redirectTo="/register" roles={["patient"]}>
+                    <MedicinesPage />
+                  </AuthRedirect>
+                } />
+                <Route path="medicines/:id" element={
+                  <AuthRedirect redirectTo="/register" roles={["patient"]}>
+                    <MedicineDetailPage />
+                  </AuthRedirect>
+                } />
                 <Route path="about" element={<AboutUsPage />} />
                 <Route path="contact" element={<ContactPage />} />
 
-                <Route path="upload-prescription" element={<UploadPrescriptionPage />} />
+                {/* Upload prescription should also require account creation */}
+                <Route path="upload-prescription" element={
+                  <AuthRedirect redirectTo="/register" roles={["patient"]}>
+                    <UploadPrescriptionPage />
+                  </AuthRedirect>
+                } />
 
                 {/* Protected Routes for Patients */}
                 <Route element={<ProtectedRoute roles={['patient']} />}>
