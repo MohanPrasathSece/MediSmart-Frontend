@@ -10,9 +10,14 @@ const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Normalize base URL to always include '/api'
+  const RAW_API_BASE = process.env.REACT_APP_API_URL || '/api';
+  const TRIMMED = RAW_API_BASE.replace(/\/+$/, '');
+  const BASE_WITH_API = TRIMMED.endsWith('/api') ? TRIMMED : `${TRIMMED}/api`;
+
   const api = axios.create({
-    baseURL: process.env.REACT_APP_API_URL || '/api',
-    timeout: 10000,
+    baseURL: BASE_WITH_API,
+    timeout: 15000,
     headers: {
       'Content-Type': 'application/json',
     },
@@ -57,7 +62,9 @@ const AuthProvider = ({ children }) => {
       return response.data;
     } catch (error) {
       console.error('Login failed:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Login failed';
+      const errorMessage = error.response?.data?.message
+        || (error.request ? 'Network error: Unable to reach server' : error.message)
+        || 'Login failed';
       toast.error(errorMessage);
       throw error;
     } finally {
@@ -78,18 +85,19 @@ const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Registration failed:', error);
       console.error('Error response:', error.response?.data);
-      
+
       let errorMessage = 'Registration failed';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.response?.data?.errors) {
-        // Handle validation errors array
         const validationErrors = error.response.data.errors.map(err => err.msg).join(', ');
         errorMessage = `Validation failed: ${validationErrors}`;
+      } else if (error.request) {
+        errorMessage = 'Network error: Unable to reach server';
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       toast.error(errorMessage);
       throw error;
     } finally {
